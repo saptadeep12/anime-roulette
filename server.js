@@ -33,7 +33,7 @@ function createInitialState() {
   return {
     settings: {
       appName: "AI Anime Prompt Roulette",
-      guessLimit: 3
+      guessLimit: 1
     },
     players: [],
     rounds: [],
@@ -197,6 +197,8 @@ function summarizeState(state) {
       prompt: round.prompt,
       imageUrl: round.imageUrl,
       status: round.status,
+      characterOptions: round.characterOptions,
+      animeOptions: round.animeOptions,
       revealedAt: round.revealedAt,
       createdAt: round.createdAt,
       guessCount: round.guesses.length,
@@ -216,6 +218,8 @@ function summarizeState(state) {
           prompt: currentRound.prompt,
           imageUrl: currentRound.imageUrl,
           status: currentRound.status,
+          characterOptions: currentRound.characterOptions,
+          animeOptions: currentRound.animeOptions,
           createdAt: currentRound.createdAt,
           answer:
             currentRound.status === "revealed"
@@ -226,6 +230,8 @@ function summarizeState(state) {
               : null
         }
       : null,
+    player: null,
+    currentPlayerGuesses: [],
     updatedAt: state.updatedAt
   };
 }
@@ -338,9 +344,19 @@ async function handleCreateRound(req, res, body) {
   const imageUrl = sanitize(body.imageUrl);
   const character = sanitize(body.character);
   const anime = sanitize(body.anime);
+  const characterOptions = Array.isArray(body.characterOptions) ? body.characterOptions.map(sanitize).filter(Boolean) : [];
+  const animeOptions = Array.isArray(body.animeOptions) ? body.animeOptions.map(sanitize).filter(Boolean) : [];
 
   if (!prompt || !character || !anime) {
     sendJson(res, 400, { error: "Prompt, character, and anime are required" });
+    return;
+  }
+  if (characterOptions.length !== 3 || !characterOptions.some((o) => normalize(o) === normalize(character))) {
+    sendJson(res, 400, { error: "characterOptions must have exactly 3 unique choices including the correct character" });
+    return;
+  }
+  if (animeOptions.length !== 3 || !animeOptions.some((o) => normalize(o) === normalize(anime))) {
+    sendJson(res, 400, { error: "animeOptions must have exactly 3 unique choices including the correct anime" });
     return;
   }
 
@@ -356,6 +372,8 @@ async function handleCreateRound(req, res, body) {
       createdAt: new Date().toISOString(),
       revealedAt: null,
       answer: { character, anime },
+      characterOptions: shuffle(characterOptions),
+      animeOptions: shuffle(animeOptions),
       guesses: []
     };
     state.rounds.push(round);
@@ -364,6 +382,8 @@ async function handleCreateRound(req, res, body) {
   });
   sendJson(res, 201, summary);
 }
+
+
 
 async function handleSubmitGuess(req, res, body) {
   const playerId = sanitize(body.playerId);
@@ -382,6 +402,13 @@ async function handleSubmitGuess(req, res, body) {
     const round = state.rounds.find((entry) => entry.id === state.currentRoundId);
     if (!round || round.status !== "open") return { status: 400, error: "No active round is open" };
 
+    if (!round.characterOptions.includes(characterGuess)) {
+      return { status: 400, error: "Pick one of the given character options" };
+    }
+    if (animeGuess && !round.animeOptions.includes(animeGuess)) {
+      return { status: 400, error: "Pick one of the given anime options" };
+    }
+
     const playerGuesses = round.guesses.filter((guess) => guess.playerId === playerId);
     if (playerGuesses.length >= state.settings.guessLimit) {
       return { status: 400, error: `You already used all ${state.settings.guessLimit} guesses` };
@@ -399,6 +426,7 @@ async function handleSubmitGuess(req, res, body) {
   }
   sendJson(res, result.status, result.payload);
 }
+
 
 async function handleReveal(req, res) {
   if (!requireAdmin(req)) {
@@ -461,23 +489,22 @@ async function generateRoundContent(usedCharacters) {
     ? `Avoid these already-used characters: ${usedCharacters.join(", ")}.`
     : "";
 
-  const systemPrompt = `You generate rounds for an anime character guessing game.
+  const systemPrompt = `You generate multiple-choice rounds for an anime character guessing game.
 Reply with ONLY a JSON object, no markdown, matching this exact shape:
-{"title": string, "prompt": string, "character": string, "anime": string}
+{"title": string, "prompt": string, "character": string, "anime": string, "characterDistractors": [string, string], "animeDistractors": [string, string]}
 Rules:
 - "character" is a well-known anime character's commonly used name.
 - "anime" is the anime that character appears in.
 - "prompt" is a 2-4 sentence riddle-like description of the character that NEVER names the character or the anime.
-- "title" is short, like "Round 7".
+- "characterDistractors" are 2 OTHER well-known anime characters, plausible but clearly wrong, different from "character".
+- "animeDistractors" are 2 OTHER real anime titles, plausible but clearly wrong, different from "anime".
+- "title" is a short 2-4 word flavor title for the round that captures its vibe (e.g. "Bounty Hunter Blues", "Ninja's Resolve"). Do NOT include the word "Round" or any number in it.
 - Vary genre/difficulty and pick a different character each time.
 ${avoid}`;
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${GROQ_API_KEY}`
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [
@@ -489,9 +516,7 @@ ${avoid}`;
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Groq request failed: ${response.status} ${await response.text()}`);
-  }
+  if (!response.ok) throw new Error(`Groq request failed: ${response.status} ${await response.text()}`);
 
   const data = await response.json();
   const raw = data.choices?.[0]?.message?.content;
@@ -508,12 +533,23 @@ ${avoid}`;
   const prompt = sanitize(parsed.prompt);
   const character = sanitize(parsed.character);
   const anime = sanitize(parsed.anime);
+  const characterDistractors = Array.isArray(parsed.characterDistractors) ? parsed.characterDistractors.map(sanitize).filter(Boolean) : [];
+  const animeDistractors = Array.isArray(parsed.animeDistractors) ? parsed.animeDistractors.map(sanitize).filter(Boolean) : [];
 
-  if (!prompt || !character || !anime) {
+  if (!prompt || !character || !anime || characterDistractors.length < 2 || animeDistractors.length < 2) {
     throw new Error("Groq response was missing required fields");
   }
-  return { title, prompt, character, anime };
+
+  return {
+    title,
+    prompt,
+    character,
+    anime,
+    characterOptions: shuffle([character, characterDistractors[0], characterDistractors[1]]),
+    animeOptions: shuffle([anime, animeDistractors[0], animeDistractors[1]])
+  };
 }
+
 
 async function handleGenerateRound(req, res) {
   if (!requireAdmin(req)) {
@@ -529,6 +565,17 @@ async function handleGenerateRound(req, res) {
     sendJson(res, 502, { error: error.message || "AI generation failed" });
   }
 }
+
+
+function shuffle(array) {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);

@@ -1,42 +1,77 @@
 {
   "settings": {
     "appName": "AI Anime Prompt Roulette",
-    "guessLimit": 3
+    "guessLimit": 1
   },
   "players": [
     {
-      "id": "player_89ua5xxf",
-      "name": "saptadeep devnath",
+      "id": "player_ez9okt3u",
+      "name": "saptadeepdevnath",
       "score": 0,
-      "joinedAt": "2026-08-29T08:10:25.634Z"
+      "joinedAt": "2026-08-29T17:19:32.435Z"
     }
   ],
   "rounds": [
     {
-      "id": "round_zmv99hhc",
+      "id": "round_isydzm12",
       "roundNumber": 1,
-      "title": "Anime",
-      "prompt": "Tall, blind folded, white hair",
+      "title": "Masked Mentor",
+      "prompt": "He is known for his laid-back demeanor, yet his gaze hides a tragic past. Constantly seen with a book in hand, he conceals a powerful eye technique behind a single covered eye.",
       "imageUrl": "",
       "status": "open",
-      "createdAt": "2026-08-29T08:10:00.595Z",
+      "createdAt": "2026-08-29T17:19:19.093Z",
       "revealedAt": null,
       "answer": {
-        "character": "Gojo",
-        "anime": "Jujutsu Kaisan"
+        "character": "Kakashi Hatake",
+        "anime": "Naruto"
       },
+      "characterOptions": [
+        "Itachi Uchiha",
+        "Sasuke Uchiha",
+        "Kakashi Hatake"
+      ],
+      "animeOptions": [
+        "Naruto",
+        "One Piece",
+        "Bleach"
+      ],
       "guesses": [
         {
-          "id": "guess_b1qtpag4",
-          "playerId": "player_89ua5xxf",
-          "characterGuess": "Gojo",
-          "animeGuess": "Pokemon",
-          "submittedAt": "2026-08-29T08:10:43.009Z",
+          "id": "guess_n4mi56cf",
+          "playerId": "player_ez9okt3u",
+          "characterGuess": "Kakashi Hatake",
+          "animeGuess": "Naruto",
+          "submittedAt": "2026-08-29T17:19:43.739Z",
           "pointsAwarded": 0
         }
       ]
+    },
+    {
+      "id": "round_2bow4dcn",
+      "roundNumber": 2,
+      "title": "Blade of the Wall",
+      "prompt": "A stoic soldier known for his unmatched skill with blades, he leads the elite squad that confronts towering threats. His strict demeanor hides a tragic past tied to a ruined city.",
+      "imageUrl": "",
+      "status": "open",
+      "createdAt": "2026-08-29T17:19:50.082Z",
+      "revealedAt": null,
+      "answer": {
+        "character": "Levi Ackerman",
+        "anime": "Attack on Titan"
+      },
+      "characterOptions": [
+        "Mikasa Ackerman",
+        "Sasuke Uchiha",
+        "Levi Ackerman"
+      ],
+      "animeOptions": [
+        "Fullmetal Alchemist",
+        "My Hero Academia",
+        "Attack on Titan"
+      ],
+      "guesses": []
     }
   ],
-  "currentRoundId": "round_zmv99hhc",
-  "updatedAt": "2026-08-29T08:10:43.009Z"
+  "currentRoundId": "round_2bow4dcn",
+  "updatedAt": "2026-08-29T17:19:50.082Z"
 }

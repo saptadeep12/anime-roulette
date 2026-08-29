@@ -16,125 +16,168 @@
             Fast host controls, simple player join, and live scoring built for tomorrow's event.
           </p>
         </div>
+      </header>
+
+      <!-- HOME SCREEN -->
+      <section id="home-screen" class="panel home-panel">
         <div class="hero-card">
           <h2>How to play</h2>
           <ol>
-            <li>One player chooses a character and writes an AI-style prompt without the name.</li>
-            <li>Everyone gets 3 guesses to name the character.</li>
+            <li>The host opens a round with an AI-style prompt describing a character.</li>
+            <li>Everyone picks from 3 character options and 3 anime options.</li>
             <li>A correct character earns 1 point.</li>
-            <li>Guess the anime too and earn 1 bonus point.</li>
+            <li>Correct anime too earns 1 bonus point.</li>
           </ol>
         </div>
-      </header>
+        <div class="home-actions button-row">
+          <button id="choose-player" type="button">I'm a Player</button>
+          <button id="choose-host" type="button" class="secondary">I'm the Host</button>
+        </div>
+      </section>
 
-      <main class="layout">
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Join</p>
-              <h2>Player Access</h2>
-            </div>
-          </div>
-          <form id="join-form" class="stack">
-            <label>
-              Display name
-              <input id="player-name" name="name" maxlength="32" placeholder="Enter your name" required />
-            </label>
-            <button type="submit">Join Game</button>
-          </form>
-          <div id="player-session" class="hidden">
-            <div class="status-card">
-              <p class="status-label">Signed in as</p>
-              <p id="player-badge" class="status-value"></p>
-            </div>
+      <!-- MAIN LAYOUT -->
+      <main class="layout hidden" id="main-layout">
+        <button id="back-home" type="button" class="ghost back-button">← Back</button>
 
-            <div id="current-round" class="round-card empty-state">
-              Waiting for the host to open the next round.
+        <!-- PLAYER VIEW -->
+        <div id="player-view" class="hidden">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Join</p>
+                <h2>Player Access</h2>
+              </div>
             </div>
-
-            <form id="guess-form" class="stack hidden">
+            <form id="join-form" class="stack">
               <label>
-                Character guess
-                <input id="character-guess" maxlength="60" placeholder="Goku" required />
+                Display name
+                <input id="player-name" name="name" maxlength="32" placeholder="Enter your name" required />
               </label>
+              <button type="submit">Join Game</button>
+            </form>
+            <div id="player-session" class="hidden">
+              <div class="status-card">
+                <p class="status-label">Signed in as</p>
+                <p id="player-badge" class="status-value"></p>
+              </div>
+
+              <div id="current-round" class="round-card empty-state">
+                Waiting for the host to open the next round.
+              </div>
+
+              <form id="guess-form" class="stack hidden">
+                <div>
+                  <p class="option-label">Who is it?</p>
+                  <div id="character-options" class="option-group"></div>
+                </div>
+                <div>
+                  <p class="option-label">Which anime?</p>
+                  <div id="anime-options" class="option-group"></div>
+                </div>
+                <button type="submit">Submit Guess</button>
+              </form>
+
+              <div id="guess-history" class="stack"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Live</p>
+                <h2>Leaderboard</h2>
+              </div>
+              <span id="player-count" class="pill">0 players</span>
+            </div>
+            <div id="leaderboard" class="leaderboard empty-state">No players yet.</div>
+          </section>
+        </div>
+
+        <!-- HOST VIEW -->
+        <div id="host-view" class="hidden">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Host</p>
+                <h2>Round Controls</h2>
+              </div>
+            </div>
+            <form id="admin-form" class="stack compact">
               <label>
-                Anime guess
-                <input id="anime-guess" maxlength="60" placeholder="Dragon Ball Z" />
+                Admin code
+                <input id="admin-code" type="password" placeholder="host123" />
               </label>
-              <button type="submit">Submit Guess</button>
             </form>
 
-            <div id="guess-history" class="stack"></div>
-          </div>
-        </section>
+            <form id="round-form" class="stack">
+              <label>
+                Round title
+                <input id="round-title" maxlength="50" placeholder="Round 1" />
+              </label>
+              <label>
+                AI prompt
+                <textarea id="round-prompt" rows="6" placeholder="Describe the character without using the name." required></textarea>
+              </label>
+              <label>
+                Optional image URL
+                <input id="round-image" maxlength="300" placeholder="https://..." />
+              </label>
+              <label>
+                Correct character
+                <input id="answer-character" maxlength="60" placeholder="Son Goku" required />
+              </label>
+              <label>
+                Wrong character option 1
+                <input id="wrong-character-1" maxlength="60" placeholder="Naruto Uzumaki" required />
+              </label>
+              <label>
+                Wrong character option 2
+                <input id="wrong-character-2" maxlength="60" placeholder="Luffy" required />
+              </label>
+              <label>
+                Correct anime
+                <input id="answer-anime" maxlength="60" placeholder="Dragon Ball Z" required />
+              </label>
+              <label>
+                Wrong anime option 1
+                <input id="wrong-anime-1" maxlength="60" placeholder="Naruto" required />
+              </label>
+              <label>
+                Wrong anime option 2
+                <input id="wrong-anime-2" maxlength="60" placeholder="One Piece" required />
+              </label>
+              <div class="button-row">
+                <button id="generate-round" type="button" class="secondary">✨ Generate with AI</button>
+              </div>
+              <div class="button-row">
+                <button type="submit">Open Round</button>
+                <button id="reveal-round" type="button" class="secondary">Reveal & Score</button>
+                <button id="reset-game" type="button" class="ghost">Reset All</button>
+              </div>
+            </form>
+          </section>
 
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Host</p>
-              <h2>Round Controls</h2>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Live</p>
+                <h2>Leaderboard</h2>
+              </div>
+              <span id="host-player-count" class="pill">0 players</span>
             </div>
-          </div>
-          <form id="admin-form" class="stack compact">
-            <label>
-              Admin code
-              <input id="admin-code" type="password" placeholder="host123" />
-            </label>
-          </form>
+            <div id="host-leaderboard" class="leaderboard empty-state">No players yet.</div>
+          </section>
 
-          <form id="round-form" class="stack">
-
-            <label>
-              Round title
-              <input id="round-title" maxlength="50" placeholder="Round 1" />
-            </label>
-            <label>
-              AI prompt
-              <textarea id="round-prompt" rows="6" placeholder="Describe the character without using the name." required></textarea>
-            </label>
-            <label>
-              Optional image URL
-              <input id="round-image" maxlength="300" placeholder="https://..." />
-            </label>
-            <label>
-              Correct character
-              <input id="answer-character" maxlength="60" placeholder="Son Goku" required />
-            </label>
-            <label>
-              Correct anime
-              <input id="answer-anime" maxlength="60" placeholder="Dragon Ball Z" required />
-            </label>
-            <div class="button-row">
-              <button id="generate-round" type="button" class="secondary">✨ Generate with AI</button>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Archive</p>
+                <h2>Rounds</h2>
+              </div>
             </div>
-            <div class="button-row">
-              <button type="submit">Open Round</button>
-              <button id="reveal-round" type="button" class="secondary">Reveal & Score</button>
-              <button id="reset-game" type="button" class="ghost">Reset All</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Live</p>
-              <h2>Leaderboard</h2>
-            </div>
-            <span id="player-count" class="pill">0 players</span>
-          </div>
-          <div id="leaderboard" class="leaderboard empty-state">No players yet.</div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Archive</p>
-              <h2>Rounds</h2>
-            </div>
-          </div>
-          <div id="round-list" class="stack empty-state">No rounds created yet.</div>
-        </section>
+            <div id="round-list" class="stack empty-state">No rounds created yet.</div>
+          </section>
+        </div>
       </main>
     </div>
 

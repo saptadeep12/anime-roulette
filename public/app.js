@@ -4,15 +4,23 @@ const state = {
   adminCode: localStorage.getItem("roulette-admin-code") || "",
   snapshot: null
 };
-
+const homeScreen = document.getElementById("home-screen");
+const mainLayout = document.getElementById("main-layout");
+const playerView = document.getElementById("player-view");
+const hostView = document.getElementById("host-view");
+const choosePlayerButton = document.getElementById("choose-player");
+const chooseHostButton = document.getElementById("choose-host");
+const backHomeButton = document.getElementById("back-home");
+const hostLeaderboard = document.getElementById("host-leaderboard");
+const hostPlayerCount = document.getElementById("host-player-count");
 const joinForm = document.getElementById("join-form");
 const playerNameInput = document.getElementById("player-name");
 const playerSession = document.getElementById("player-session");
 const playerBadge = document.getElementById("player-badge");
 const currentRound = document.getElementById("current-round");
 const guessForm = document.getElementById("guess-form");
-const characterGuessInput = document.getElementById("character-guess");
-const animeGuessInput = document.getElementById("anime-guess");
+const characterOptionsContainer = document.getElementById("character-options");
+const animeOptionsContainer = document.getElementById("anime-options");
 const guessHistory = document.getElementById("guess-history");
 const adminCodeInput = document.getElementById("admin-code");
 const roundForm = document.getElementById("round-form");
@@ -20,7 +28,11 @@ const roundTitleInput = document.getElementById("round-title");
 const roundPromptInput = document.getElementById("round-prompt");
 const roundImageInput = document.getElementById("round-image");
 const answerCharacterInput = document.getElementById("answer-character");
+const wrongCharacter1Input = document.getElementById("wrong-character-1");
+const wrongCharacter2Input = document.getElementById("wrong-character-2");
 const answerAnimeInput = document.getElementById("answer-anime");
+const wrongAnime1Input = document.getElementById("wrong-anime-1");
+const wrongAnime2Input = document.getElementById("wrong-anime-2");
 const revealRoundButton = document.getElementById("reveal-round");
 const resetGameButton = document.getElementById("reset-game");
 const leaderboard = document.getElementById("leaderboard");
@@ -39,6 +51,30 @@ function showToast(message) {
     toast.classList.add("hidden");
   }, 2800);
 }
+
+function showView(view) {
+  homeScreen.classList.toggle("hidden", view !== "home");
+  mainLayout.classList.toggle("hidden", view === "home");
+  playerView.classList.toggle("hidden", view !== "player");
+  hostView.classList.toggle("hidden", view !== "host");
+
+  if (view === "home") {
+    history.replaceState(null, "", window.location.pathname);
+  } else {
+    window.location.hash = view;
+  }
+}
+
+function resolveInitialView() {
+  const hash = window.location.hash.replace("#", "");
+  return hash === "player" || hash === "host" ? hash : "home";
+}
+
+choosePlayerButton.addEventListener("click", () => showView("player"));
+chooseHostButton.addEventListener("click", () => showView("host"));
+backHomeButton.addEventListener("click", () => showView("home"));
+window.addEventListener("hashchange", () => showView(resolveInitialView()));
+
 
 async function api(path, options = {}) {
   const headers = {
@@ -72,16 +108,32 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+let lastRenderedRoundId = null;
+
+function renderOptionGroup(container, name, options) {
+  container.innerHTML = options
+    .map(
+      (option, index) => `
+        <label class="option-item">
+          <input type="radio" name="${name}" value="${escapeHtml(option)}" ${index === 0 ? "" : ""} />
+          <span>${escapeHtml(option)}</span>
+        </label>
+      `
+    )
+    .join("");
+}
+
 function renderCurrentRound(snapshot) {
   const round = snapshot.currentRound;
   if (!round) {
     currentRound.className = "round-card empty-state";
     currentRound.innerHTML = "Waiting for the host to open the next round.";
     guessForm.classList.add("hidden");
+    lastRenderedRoundId = null;
     return;
   }
 
-  const guessesUsed = snapshot.currentPlayerGuesses.length;
+  const guessesUsed = (snapshot.currentPlayerGuesses || []).length;
   const limit = snapshot.settings.guessLimit;
   const answer = round.answer
     ? `<div class="answer-chip">Answer: ${escapeHtml(round.answer.character)} • ${escapeHtml(round.answer.anime)}</div>`
@@ -104,17 +156,23 @@ function renderCurrentRound(snapshot) {
     ${answer}
   `;
 
+  if (round.id !== lastRenderedRoundId) {
+    renderOptionGroup(characterOptionsContainer, "character-choice", round.characterOptions || []);
+    renderOptionGroup(animeOptionsContainer, "anime-choice", round.animeOptions || []);
+    lastRenderedRoundId = round.id;
+  }
+
   const shouldShowGuessForm = round.status === "open" && guessesUsed < limit;
   guessForm.classList.toggle("hidden", !shouldShowGuessForm);
 }
 
 function renderGuessHistory(snapshot) {
-  if (!snapshot.currentPlayerGuesses.length) {
+  const guesses = snapshot.currentPlayerGuesses || [];
+  if (!guesses.length) {
     guessHistory.innerHTML = `<div class="guess-item empty-state">No guesses submitted yet.</div>`;
     return;
   }
-
-  guessHistory.innerHTML = snapshot.currentPlayerGuesses
+  guessHistory.innerHTML = guesses
     .map(
       (guess, index) => `
         <div class="guess-item">
@@ -128,31 +186,38 @@ function renderGuessHistory(snapshot) {
     .join("");
 }
 
+
 function renderLeaderboard(snapshot) {
-  playerCount.textContent = `${snapshot.players.length} players`;
+  const countText = `${snapshot.players.length} players`;
+  playerCount.textContent = countText;
+  hostPlayerCount.textContent = countText;
 
-  if (!snapshot.players.length) {
-    leaderboard.className = "leaderboard empty-state";
-    leaderboard.textContent = "No players yet.";
-    return;
-  }
-
-  leaderboard.className = "leaderboard";
-  leaderboard.innerHTML = snapshot.players
-    .map(
-      (player) => `
-        <div class="leaderboard-item">
-          <div class="leaderboard-topline">
-            <div>
-              <p>#${player.rank} ${escapeHtml(player.name)}</p>
+  const html = !snapshot.players.length
+    ? null
+    : snapshot.players
+        .map(
+          (player) => `
+            <div class="leaderboard-item">
+              <div class="leaderboard-topline">
+                <div><p>#${player.rank} ${escapeHtml(player.name)}</p></div>
+                <div class="score">${player.score}</div>
+              </div>
             </div>
-            <div class="score">${player.score}</div>
-          </div>
-        </div>
-      `
-    )
-    .join("");
+          `
+        )
+        .join("");
+
+  for (const el of [leaderboard, hostLeaderboard]) {
+    if (!html) {
+      el.className = "leaderboard empty-state";
+      el.textContent = "No players yet.";
+    } else {
+      el.className = "leaderboard";
+      el.innerHTML = html;
+    }
+  }
 }
+
 
 function renderRoundList(snapshot) {
   if (!snapshot.rounds.length) {
@@ -227,17 +292,19 @@ joinForm.addEventListener("submit", async (event) => {
 
 guessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const characterGuess = document.querySelector('input[name="character-choice"]:checked')?.value || "";
+  const animeGuess = document.querySelector('input[name="anime-choice"]:checked')?.value || "";
+
+  if (!characterGuess) {
+    showToast("Pick a character option first");
+    return;
+  }
+
   try {
     const snapshot = await api("/api/guesses", {
       method: "POST",
-      body: JSON.stringify({
-        playerId: state.playerId,
-        characterGuess: characterGuessInput.value,
-        animeGuess: animeGuessInput.value
-      })
+      body: JSON.stringify({ playerId: state.playerId, characterGuess, animeGuess })
     });
-    characterGuessInput.value = "";
-    animeGuessInput.value = "";
     render(snapshot);
     showToast("Guess submitted");
   } catch (error) {
@@ -261,7 +328,9 @@ roundForm.addEventListener("submit", async (event) => {
         prompt: roundPromptInput.value,
         imageUrl: roundImageInput.value,
         character: answerCharacterInput.value,
-        anime: answerAnimeInput.value
+        anime: answerAnimeInput.value,
+        characterOptions: [answerCharacterInput.value, wrongCharacter1Input.value, wrongCharacter2Input.value],
+        animeOptions: [answerAnimeInput.value, wrongAnime1Input.value, wrongAnime2Input.value]
       })
     });
 
@@ -269,7 +338,11 @@ roundForm.addEventListener("submit", async (event) => {
     roundPromptInput.value = "";
     roundImageInput.value = "";
     answerCharacterInput.value = "";
+    wrongCharacter1Input.value = "";
+    wrongCharacter2Input.value = "";
     answerAnimeInput.value = "";
+    wrongAnime1Input.value = "";
+    wrongAnime2Input.value = "";
     render(snapshot);
     showToast("Round opened");
   } catch (error) {
@@ -302,9 +375,13 @@ resetGameButton.addEventListener("click", async () => {
   }
 });
 
+showView(resolveInitialView());
+refresh().catch(() => {});
+
 window.setInterval(() => {
   refresh().catch(() => {});
 }, 2500);
+
 
 refresh().catch(() => {});
 const generateRoundButton = document.getElementById("generate-round");
@@ -314,10 +391,19 @@ generateRoundButton.addEventListener("click", async () => {
     generateRoundButton.disabled = true;
     generateRoundButton.textContent = "Generating...";
     const generated = await api("/api/rounds/generate", { method: "POST" });
+
     roundTitleInput.value = generated.title || "";
     roundPromptInput.value = generated.prompt;
     answerCharacterInput.value = generated.character;
     answerAnimeInput.value = generated.anime;
+
+    const otherCharacterOptions = generated.characterOptions.filter((o) => o !== generated.character);
+    const otherAnimeOptions = generated.animeOptions.filter((o) => o !== generated.anime);
+    wrongCharacter1Input.value = otherCharacterOptions[0] || "";
+    wrongCharacter2Input.value = otherCharacterOptions[1] || "";
+    wrongAnime1Input.value = otherAnimeOptions[0] || "";
+    wrongAnime2Input.value = otherAnimeOptions[1] || "";
+
     showToast("AI round generated — review, then Open Round");
   } catch (error) {
     showToast(error.message);
