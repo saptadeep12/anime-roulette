@@ -1,0 +1,13 @@
+{
+  "name": "ai-anime-prompt-roulette",
+  "version": "1.0.0",
+  "description": "Fast MVP webapp for hosting AI Anime Prompt Roulette.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.35.3"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,42 @@
+{
+  "settings": {
+    "appName": "AI Anime Prompt Roulette",
+    "guessLimit": 3
+  },
+  "players": [
+    {
+      "id": "player_89ua5xxf",
+      "name": "saptadeep devnath",
+      "score": 0,
+      "joinedAt": "2026-08-29T08:10:25.634Z"
+    }
+  ],
+  "rounds": [
+    {
+      "id": "round_zmv99hhc",
+      "roundNumber": 1,
+      "title": "Anime",
+      "prompt": "Tall, blind folded, white hair",
+      "imageUrl": "",
+      "status": "open",
+      "createdAt": "2026-08-29T08:10:00.595Z",
+      "revealedAt": null,
+      "answer": {
+        "character": "Gojo",
+        "anime": "Jujutsu Kaisan"
+      },
+      "guesses": [
+        {
+          "id": "guess_b1qtpag4",
+          "playerId": "player_89ua5xxf",
+          "characterGuess": "Gojo",
+          "animeGuess": "Pokemon",
+          "submittedAt": "2026-08-29T08:10:43.009Z",
+          "pointsAwarded": 0
+        }
+      ]
+    }
+  ],
+  "currentRoundId": "round_zmv99hhc",
+  "updatedAt": "2026-08-29T08:10:43.009Z"
+}
