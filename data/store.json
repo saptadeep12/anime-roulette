@@ -3,8 +3,15 @@
     "appName": "AI Anime Prompt Roulette",
     "guessLimit": 1
   },
-  "players": [],
+  "players": [
+    {
+      "id": "player_tjpp4snq",
+      "name": "saptadeepdevnath",
+      "score": 0,
+      "joinedAt": "2026-08-29T20:36:51.105Z"
+    }
+  ],
   "rounds": [],
   "currentRoundId": null,
-  "updatedAt": "2026-08-29T20:16:13.321Z"
+  "updatedAt": "2026-08-29T20:36:51.105Z"
 }

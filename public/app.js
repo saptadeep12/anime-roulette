@@ -240,7 +240,7 @@ function renderRoundList(snapshot) {
         <div class="round-item">
           <div class="leaderboard-topline">
             <h3>Round ${round.roundNumber}: ${escapeHtml(round.title)}</h3>
-            <span class="pill">${escapeHtml(round.status)}</span>
+            <span class="pill pill-${escapeHtml(round.status)}">${escapeHtml(round.status)}</span>
           </div>
           <div class="round-meta">
             <span>${round.guessCount} guesses</span>

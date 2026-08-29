@@ -5,7 +5,7 @@ const { URL } = require("url");
 
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = process.env.GROQ_MODEL || "qwen/qwen3.8-26b";
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
@@ -716,7 +716,9 @@ async function handleRequest(req, res) {
     }
 
     if (req.method === "POST" && url.pathname === "/api/rounds/generate") {
-      await handleGenerateRound(req, res);
+
+      const body = await parseBody(req);
+      await handleGenerateRound(req, res, body);
       return;
     }
 
