@@ -39,6 +39,7 @@ const leaderboard = document.getElementById("leaderboard");
 const roundList = document.getElementById("round-list");
 const playerCount = document.getElementById("player-count");
 const toast = document.getElementById("toast");
+const difficultySelect = document.getElementById("difficulty-select");
 
 playerNameInput.value = state.playerName;
 adminCodeInput.value = state.adminCode;
@@ -390,8 +391,7 @@ generateRoundButton.addEventListener("click", async () => {
   try {
     generateRoundButton.disabled = true;
     generateRoundButton.textContent = "Generating...";
-    const generated = await api("/api/rounds/generate", { method: "POST" });
-
+    const generated = await api("/api/rounds/generate", {method: "POST", body: JSON.stringify({ difficulty: difficultySelect.value })});
     roundTitleInput.value = generated.title || "";
     roundPromptInput.value = generated.prompt;
     answerCharacterInput.value = generated.character;

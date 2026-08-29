@@ -5,8 +5,7 @@ const { URL } = require("url");
 
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
-
+const GROQ_MODEL = process.env.GROQ_MODEL || "qwen/qwen3.8-26b";
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
@@ -28,6 +27,26 @@ const MIME_TYPES = {
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml"
 };
+
+const ANIME_BY_DIFFICULTY = {
+  easy: ["Jujutsu Kaisen", "Naruto", "Attack on Titan", "Demon Slayer", "Dragon Ball"],
+  medium: ["One Piece", "Dr. Stone", "Bleach", "One Punch Man", "Chainsaw Man", "Vinland Saga"],
+  hard: ["Mob Psycho 100", "Dandadan", "Black Clover", "JoJo's Bizarre Adventure" /*, "<swap in your 5th hard pick>" */]
+};
+
+const ALL_CURATED_ANIME = Object.values(ANIME_BY_DIFFICULTY).flat();
+
+function pickAnimeForDifficulty(difficulty, usedAnime) {
+  const pool = ANIME_BY_DIFFICULTY[difficulty];
+  const unused = pool.filter((title) => !usedAnime.includes(title));
+  const candidates = unused.length > 0 ? unused : pool;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function pickAnimeDistractors(correctAnime) {
+  const others = shuffle(ALL_CURATED_ANIME.filter((title) => title !== correctAnime));
+  return others.slice(0, 2);
+}
 
 function createInitialState() {
   return {
@@ -482,24 +501,103 @@ async function handleReset(req, res) {
 
 
 
-async function generateRoundContent(usedCharacters) {
+// async function generateRoundContent(usedCharacters) {
+//   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not set");
+//
+//   const avoid = usedCharacters.length
+//     ? `Avoid these already-used characters: ${usedCharacters.join(", ")}.`
+//     : "";
+//
+//   const systemPrompt = `You generate multiple-choice rounds for an anime character guessing game.
+// Reply with ONLY a JSON object, no markdown, matching this exact shape:
+// {"title": string, "prompt": string, "character": string, "anime": string, "characterDistractors": [string, string], "animeDistractors": [string, string]}
+// Rules:
+// - "character" is a well-known anime character's commonly used name.
+// - "anime" is the anime that character appears in.
+// - "prompt" is a 2-4 sentence riddle-like description of the character that NEVER names the character or the anime.
+// - "characterDistractors" are 2 OTHER well-known anime characters, plausible but clearly wrong, different from "character".
+// - "animeDistractors" are 2 OTHER real anime titles, plausible but clearly wrong, different from "anime".
+// - "title" is a short 2-4 word flavor title for the round that captures its vibe (e.g. "Bounty Hunter Blues", "Ninja's Resolve"). Do NOT include the word "Round" or any number in it.
+// - Vary genre/difficulty and pick a different character each time.
+// ${avoid}`;
+//
+//   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+//     body: JSON.stringify({
+//       model: GROQ_MODEL,
+//       messages: [
+//         { role: "system", content: systemPrompt },
+//         { role: "user", content: "Generate one round." }
+//       ],
+//       temperature: 1,
+//       response_format: { type: "json_object" }
+//     })
+//   });
+//
+//   if (!response.ok) throw new Error(`Groq request failed: ${response.status} ${await response.text()}`);
+//
+//   const data = await response.json();
+//   const raw = data.choices?.[0]?.message?.content;
+//   if (!raw) throw new Error("Groq returned no content");
+//
+//   let parsed;
+//   try {
+//     parsed = JSON.parse(raw);
+//   } catch {
+//     throw new Error("Groq returned invalid JSON");
+//   }
+//
+//   const title = sanitize(parsed.title);
+//   const prompt = sanitize(parsed.prompt);
+//   const character = sanitize(parsed.character);
+//   const anime = sanitize(parsed.anime);
+//   const characterDistractors = Array.isArray(parsed.characterDistractors) ? parsed.characterDistractors.map(sanitize).filter(Boolean) : [];
+//   const animeDistractors = Array.isArray(parsed.animeDistractors) ? parsed.animeDistractors.map(sanitize).filter(Boolean) : [];
+//
+//   if (!prompt || !character || !anime || characterDistractors.length < 2 || animeDistractors.length < 2) {
+//     throw new Error("Groq response was missing required fields");
+//   }
+//
+//   return {
+//     title,
+//     prompt,
+//     character,
+//     anime,
+//     characterOptions: shuffle([character, characterDistractors[0], characterDistractors[1]]),
+//     animeOptions: shuffle([anime, animeDistractors[0], animeDistractors[1]])
+//   };
+// }
+function pickDifficulty() {
+  const roll = Math.random();
+  if (roll < 0.55) return "easy";
+  if (roll < 0.85) return "medium";
+  return "hard";
+}
+
+
+const DIFFICULTY_GUIDANCE = {
+  easy: "Pick an iconic, extremely well-known character from a mainstream, widely-watched anime — the kind almost anyone who's seen a handful of anime would instantly recognize.",
+  medium: "Pick a strong, recognizable character, but not necessarily the single most famous face of their series — a notable supporting character, or the lead of a moderately popular (not top-5-mainstream) anime works well.",
+  hard: "Pick a character from a less mainstream, older, niche, or cult-classic anime — someone a genuine, well-watched anime fan would know but a casual viewer likely wouldn't. Deliberately AVOID the most overused picks (Naruto, Goku, Luffy, Light Yagami, Edward Elric, Ichigo, Natsu) for this difficulty."
+};
+
+async function generateRoundContent(usedCharacters, anime) {
   if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not set");
 
   const avoid = usedCharacters.length
     ? `Avoid these already-used characters: ${usedCharacters.join(", ")}.`
     : "";
 
-  const systemPrompt = `You generate multiple-choice rounds for an anime character guessing game.
+  const systemPrompt = `You generate a multiple-choice round for an anime character guessing game.
+The round MUST be about a character from this exact anime: "${anime}". Do not use a character from any other anime.
 Reply with ONLY a JSON object, no markdown, matching this exact shape:
-{"title": string, "prompt": string, "character": string, "anime": string, "characterDistractors": [string, string], "animeDistractors": [string, string]}
+{"title": string, "prompt": string, "character": string, "characterDistractors": [string, string]}
 Rules:
-- "character" is a well-known anime character's commonly used name.
-- "anime" is the anime that character appears in.
+- "character" is a real character from "${anime}", using their commonly used name. Aim for medium difficulty: not the single most obvious main-character moment, but not deep-cut obscure trivia either — someone who has actually watched "${anime}" should be able to answer, but someone who only knows the title in passing shouldn't find it trivially easy.
 - "prompt" is a 2-4 sentence riddle-like description of the character that NEVER names the character or the anime.
-- "characterDistractors" are 2 OTHER well-known anime characters, plausible but clearly wrong, different from "character".
-- "animeDistractors" are 2 OTHER real anime titles, plausible but clearly wrong, different from "anime".
-- "title" is a short 2-4 word flavor title for the round that captures its vibe (e.g. "Bounty Hunter Blues", "Ninja's Resolve"). Do NOT include the word "Round" or any number in it.
-- Vary genre/difficulty and pick a different character each time.
+- "characterDistractors" are 2 OTHER real characters from "${anime}" itself — wrong but plausible, ideally similar in role/importance to "character" so it's not a trivially obvious pick.
+- "title" is a short 2-4 word flavor title for the round that captures its vibe. Do NOT include the word "Round" or any number in it.
 ${avoid}`;
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -532,13 +630,13 @@ ${avoid}`;
   const title = sanitize(parsed.title);
   const prompt = sanitize(parsed.prompt);
   const character = sanitize(parsed.character);
-  const anime = sanitize(parsed.anime);
   const characterDistractors = Array.isArray(parsed.characterDistractors) ? parsed.characterDistractors.map(sanitize).filter(Boolean) : [];
-  const animeDistractors = Array.isArray(parsed.animeDistractors) ? parsed.animeDistractors.map(sanitize).filter(Boolean) : [];
 
-  if (!prompt || !character || !anime || characterDistractors.length < 2 || animeDistractors.length < 2) {
+  if (!prompt || !character || characterDistractors.length < 2) {
     throw new Error("Groq response was missing required fields");
   }
+
+  const animeDistractors = pickAnimeDistractors(anime);
 
   return {
     title,
@@ -551,15 +649,24 @@ ${avoid}`;
 }
 
 
-async function handleGenerateRound(req, res) {
+async function handleGenerateRound(req, res, body) {
   if (!requireAdmin(req)) {
     sendJson(res, 401, { error: "Admin code required" });
     return;
   }
+
+  const difficulty = sanitize(body && body.difficulty).toLowerCase();
+  if (!ANIME_BY_DIFFICULTY[difficulty]) {
+    sendJson(res, 400, { error: "difficulty must be easy, medium, or hard" });
+    return;
+  }
+
   try {
     const state = await readStore();
     const usedCharacters = state.rounds.map((r) => r.answer.character);
-    const generated = await generateRoundContent(usedCharacters);
+    const usedAnime = state.rounds.map((r) => r.answer.anime);
+    const anime = pickAnimeForDifficulty(difficulty, usedAnime);
+    const generated = await generateRoundContent(usedCharacters, anime);
     sendJson(res, 200, generated);
   } catch (error) {
     sendJson(res, 502, { error: error.message || "AI generation failed" });
