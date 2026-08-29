@@ -3,6 +3,11 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
+
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "store.json");
@@ -439,11 +444,90 @@ async function handleReset(req, res) {
     return;
   }
 
+
   const summary = await withStoreLock((state) => {
     Object.assign(state, createInitialState());
     return summarizeState(state);
   });
   sendJson(res, 200, summary);
+}
+
+
+
+async function generateRoundContent(usedCharacters) {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not set");
+
+  const avoid = usedCharacters.length
+    ? `Avoid these already-used characters: ${usedCharacters.join(", ")}.`
+    : "";
+
+  const systemPrompt = `You generate rounds for an anime character guessing game.
+Reply with ONLY a JSON object, no markdown, matching this exact shape:
+{"title": string, "prompt": string, "character": string, "anime": string}
+Rules:
+- "character" is a well-known anime character's commonly used name.
+- "anime" is the anime that character appears in.
+- "prompt" is a 2-4 sentence riddle-like description of the character that NEVER names the character or the anime.
+- "title" is short, like "Round 7".
+- Vary genre/difficulty and pick a different character each time.
+${avoid}`;
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${GROQ_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: "Generate one round." }
+      ],
+      temperature: 1,
+      response_format: { type: "json_object" }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Groq request failed: ${response.status} ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  const raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error("Groq returned no content");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Groq returned invalid JSON");
+  }
+
+  const title = sanitize(parsed.title);
+  const prompt = sanitize(parsed.prompt);
+  const character = sanitize(parsed.character);
+  const anime = sanitize(parsed.anime);
+
+  if (!prompt || !character || !anime) {
+    throw new Error("Groq response was missing required fields");
+  }
+  return { title, prompt, character, anime };
+}
+
+async function handleGenerateRound(req, res) {
+  if (!requireAdmin(req)) {
+    sendJson(res, 401, { error: "Admin code required" });
+    return;
+  }
+  try {
+    const state = await readStore();
+    const usedCharacters = state.rounds.map((r) => r.answer.character);
+    const generated = await generateRoundContent(usedCharacters);
+    sendJson(res, 200, generated);
+  } catch (error) {
+    sendJson(res, 502, { error: error.message || "AI generation failed" });
+  }
 }
 
 async function handleRequest(req, res) {
@@ -474,6 +558,11 @@ async function handleRequest(req, res) {
     if (req.method === "POST" && url.pathname === "/api/rounds") {
       const body = await parseBody(req);
       await handleCreateRound(req, res, body);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/rounds/generate") {
+      await handleGenerateRound(req, res);
       return;
     }
 

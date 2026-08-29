@@ -307,3 +307,22 @@ window.setInterval(() => {
 }, 2500);
 
 refresh().catch(() => {});
+const generateRoundButton = document.getElementById("generate-round");
+
+generateRoundButton.addEventListener("click", async () => {
+  try {
+    generateRoundButton.disabled = true;
+    generateRoundButton.textContent = "Generating...";
+    const generated = await api("/api/rounds/generate", { method: "POST" });
+    roundTitleInput.value = generated.title || "";
+    roundPromptInput.value = generated.prompt;
+    answerCharacterInput.value = generated.character;
+    answerAnimeInput.value = generated.anime;
+    showToast("AI round generated — review, then Open Round");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    generateRoundButton.disabled = false;
+    generateRoundButton.textContent = "✨ Generate with AI";
+  }
+});
