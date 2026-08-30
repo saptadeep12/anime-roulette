@@ -253,7 +253,7 @@ button {
   font: inherit;
 }
 
-input,
+input:not([type="radio"]):not([type="checkbox"]),
 textarea,
 select {
   width: 100%;
@@ -263,10 +263,10 @@ select {
   padding: 13px 16px;
   border-radius: 14px;
   outline: none;
-  font-size: 16px; /* prevents iOS auto-zoom on focus */
+  font-size: 16px;
 }
 
-input:focus,
+input:not([type="radio"]):not([type="checkbox"]):focus,
 textarea:focus,
 select:focus {
   border-color: var(--accent-2);
@@ -353,11 +353,21 @@ button.ghost {
   box-shadow: 3px 3px 0 var(--ink);
   background: rgba(0, 229, 255, 0.08);
 }
+.option-item span {
+  word-break: break-word;
+}
 
-.option-item input {
-  width: auto;
+.option-item input[type="radio"] {
+  appearance: auto;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
   margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
   accent-color: var(--accent-2);
+  flex-shrink: 0;
 }
 
 /* ---------- Cards: status / round / leaderboard / guess ---------- */
